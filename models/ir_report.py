@@ -7,7 +7,7 @@ from openerp import addons
 
 class report_xml(osv.Model):
     """ Inherit from ir.actions.report.xml to allow customizing the template
-    file. The user cam chose a template from a list.
+    file. The user can chose a template from a list.
     The list is configurable in the configuration tab, see py3o_template.py
     """
 
