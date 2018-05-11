@@ -15,6 +15,25 @@ from openerp import registry
 from py3o.template.helpers import Py3oConvertor
 from py3o.template import Template
 
+libreoffice_present = os.path.expanduser('~/.py3o_libreoffice_present')
+if os.path.exists(libreoffice_present):
+    USE_LOCAL_LIBREOFFICE = open(libreoffice_present).read() == 'True'
+
+else:
+    USE_LOCAL_LIBREOFFICE = False
+    try:
+        import sh
+        import tempfile
+
+        sh.libreoffice('--headless', '--version')
+
+        USE_LOCAL_LIBREOFFICE = True
+
+    except:
+        pass
+
+    open(libreoffice_present, 'w').write(str(USE_LOCAL_LIBREOFFICE))
+
 
 _extender_functions = {}
 
@@ -164,10 +183,35 @@ class Py3oParser(report_sxw):
                 # No format conversion is needed, render the template directly
                 template.render(parsed_datadict)
                 res = out_stream.getvalue()
+
             else:
-                raise exceptions.MissingError(
-                    _(u"No Py3o server configuration found")
-                )
+                if USE_LOCAL_LIBREOFFICE:
+                    import sh
+                    import tempfile
+
+                    template.render(parsed_datadict)
+                    res = out_stream.getvalue()
+
+                    arq = tempfile.NamedTemporaryFile(delete=False)
+                    arq.seek(0)
+                    arq.write(res)
+                    arq.flush()
+
+                    res_arq_name = arq.name + '.' + filetype.fusion_ext
+
+                    sh.libreoffice('--headless', '--invisible', \
+                        '--convert-to', filetype.fusion_ext, \
+                        '--outdir', '/tmp', arq.name)
+
+                    res = file(res_arq_name, 'r').read()
+
+                    os.remove(res_arq_name)
+                    os.remove(arq.name)
+
+                else:
+                    raise exceptions.MissingError(
+                        _(u"No Py3o server configuration found")
+                    )
 
         else:  # Call py3o.server to render the template in the desired format
             fusion_server_id = fusion_server_ids[0]
